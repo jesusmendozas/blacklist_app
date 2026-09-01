@@ -1,0 +1,213 @@
+{
+  "info": {
+    "_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "name": "Blacklist App API",
+    "description": "Colección para el microservicio de blacklist de emails.\n\nVariables de colección:\n- `base_url`: URL base del servicio (default: http://localhost:3000)\n- `bearer_token`: Token de autenticación (debe coincidir con BEARER_TOKEN en .env)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "bearer_token",
+      "value": "dev-token-change-in-production"
+    },
+    {
+      "key": "test_email",
+      "value": "user@example.com"
+    },
+    {
+      "key": "app_uuid",
+      "value": "123e4567-e89b-12d3-a456-426614174000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "item": [
+        {
+          "name": "Ping",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blacklists/ping",
+              "host": ["{{base_url}}"],
+              "path": ["blacklists", "ping"]
+            },
+            "description": "Health check del servicio. No requiere autenticación.\n\n**Respuesta 200:**\n```json\n{\n  \"message\": \"pong\"\n}\n```"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"pong\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Blacklist",
+      "item": [
+        {
+          "name": "Create Blacklist Entry",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{test_email}}\",\n  \"app_uuid\": \"{{app_uuid}}\",\n  \"blocked_reason\": \"Spam activity detected\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/blacklists",
+              "host": ["{{base_url}}"],
+              "path": ["blacklists"]
+            },
+            "description": "Agrega un email a la blacklist.\n\n**Requiere:** Bearer token\n\n**Body:**\n| Campo | Tipo | Requerido | Descripción |\n|-------|------|-----------|-------------|\n| email | string | Sí | Email válido |\n| app_uuid | string (UUID) | Sí | UUID de la aplicación |\n| blocked_reason | string | No | Razón del bloqueo (máx. 255 chars) |\n\n**Respuestas:**\n- `201` - Creado exitosamente\n- `400` - Datos inválidos\n- `401` - No autorizado\n- `409` - Email ya en blacklist"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "status": "Created",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"email\": \"user@example.com\",\n  \"app_uuid\": \"123e4567-e89b-12d3-a456-426614174000\",\n  \"blocked_reason\": \"Spam activity detected\",\n  \"ip_address\": \"127.0.0.1\",\n  \"created_at\": \"2026-08-31T20:00:00\"\n}"
+            },
+            {
+              "name": "400 Bad Request",
+              "status": "Bad Request",
+              "code": 400,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Bad Request\",\n  \"message\": \"Validation failed\",\n  \"details\": {\n    \"email\": [\"Invalid email format\"],\n    \"app_uuid\": [\"Not a valid UUID format.\"]\n  }\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Authorization header is missing\"\n}"
+            },
+            {
+              "name": "409 Conflict",
+              "status": "Conflict",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Conflict\",\n  \"message\": \"Email is already in the blacklist\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Check Blacklist Status",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{bearer_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/blacklists/{{test_email}}",
+              "host": ["{{base_url}}"],
+              "path": ["blacklists", "{{test_email}}"]
+            },
+            "description": "Consulta si un email está en la blacklist.\n\n**Requiere:** Bearer token\n\n**Respuesta 200 (blacklisted):**\n```json\n{\n  \"is_blacklisted\": true,\n  \"email\": \"user@example.com\",\n  \"blocked_reason\": \"Spam activity detected\"\n}\n```\n\n**Respuesta 200 (not blacklisted):**\n```json\n{\n  \"is_blacklisted\": false,\n  \"email\": \"user@example.com\",\n  \"blocked_reason\": null\n}\n```"
+          },
+          "response": [
+            {
+              "name": "200 Blacklisted",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"is_blacklisted\": true,\n  \"email\": \"user@example.com\",\n  \"blocked_reason\": \"Spam activity detected\"\n}"
+            },
+            {
+              "name": "200 Not Blacklisted",
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"is_blacklisted\": false,\n  \"email\": \"user@example.com\",\n  \"blocked_reason\": null\n}"
+            },
+            {
+              "name": "401 Unauthorized",
+              "status": "Unauthorized",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"error\": \"Unauthorized\",\n  \"message\": \"Invalid bearer token\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

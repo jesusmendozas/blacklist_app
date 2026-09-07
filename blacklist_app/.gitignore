@@ -61,5 +61,6 @@ junit.xml
 Thumbs.db
 
 # Poetry
-poetry.lock
+# poetry.lock SÍ se versiona: es una aplicación, no una librería, y el
+# Dockerfile lo usa para que los builds sean reproducibles.
 

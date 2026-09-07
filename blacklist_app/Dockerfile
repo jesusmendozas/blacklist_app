@@ -1,56 +1,80 @@
+# syntax=docker/dockerfile:1
+
+# ---------------------------------------------------------------------------
+# Stage base: resuelve e instala las dependencias de la aplicación
+# ---------------------------------------------------------------------------
 FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-# Set environment variables to improve pip performance
 ENV PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_DEFAULT_TIMEOUT=600 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    POETRY_VERSION=1.8.5
 
-# Update pip and install Poetry with increased timeout
+# Poetry con versión fija para que el build sea reproducible
 RUN pip install --upgrade pip && \
-    pip install --timeout=600 poetry
+    pip install --timeout=600 "poetry==${POETRY_VERSION}"
 
-# Copy poetry configuration files
+# Copiamos primero la configuración para aprovechar la caché de capas
 COPY pyproject.toml poetry.lock* ./
 
-# Configure poetry to not create a virtual environment
+# Instalamos en el Python del sistema, sin virtualenv dentro del contenedor
 RUN poetry config virtualenvs.create false
 
-# Instalamos las dependencias que necesitamos, sin instalar el proyecto actual
+# Solo dependencias de producción, sin instalar el paquete del proyecto
 RUN poetry install --only main --no-root
 
-# Creamos un nuevo stage con el alias runner
+# ---------------------------------------------------------------------------
+# Stage tester: agrega las dependencias de desarrollo y corre las pruebas
+# Uso: docker build --target tester -t blacklist-app:test .
+# ---------------------------------------------------------------------------
+FROM base AS tester
+
+# No se definen DATABASE_URL ni BEARER_TOKEN aquí: tests/conftest.py las
+# configura por su cuenta (SQLite temporal + token de prueba) antes de
+# importar la aplicación.
+RUN poetry install --with dev --no-root
+
+COPY ./src /app/src
+COPY ./tests /app/tests
+
+CMD ["pytest", "tests/", "-v", "--cov=src", "--cov-report=term-missing"]
+
+# ---------------------------------------------------------------------------
+# Stage runner: imagen final mínima, sin herramientas de build ni dev deps
+# ---------------------------------------------------------------------------
 FROM python:3.11-slim AS runner
 
-# Definimos la misma carpeta de trabajo
 WORKDIR /app
 
-# Set environment variable
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=3000
 
-# Copiamos las librerías instaladas y los archivos necesarios de base a runner
+# Copiamos las librerías ya instaladas desde base (incluye gunicorn en /usr/local/bin)
 COPY --from=base /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=base /usr/local/bin /usr/local/bin
 
-# Copiamos el código de la aplicación
-COPY --from=base /app /app
+# Código de la aplicación
 COPY ./src /app/src
 
-# Crea el usuario y el grupo noroot
-RUN groupadd -r noroot && useradd -r -g noroot noroot
+# Usuario sin privilegios
+RUN groupadd -r noroot && \
+    useradd -r -g noroot noroot && \
+    chown -R noroot:noroot /app
 
-# Le damos la propiedad de la carpeta /app al usuario noroot
-RUN chown -R noroot:noroot /app
-
-# Definimos el usuario con el que se ejecutará el contenedor
 USER noroot
 
-# Expose port (Render/Railway injectan PORT; local default 3000)
-ENV PORT=3000
 EXPOSE 3000
 
-# Command to run the application
-CMD ["sh", "-c", "gunicorn --preload -w 4 -b 0.0.0.0:${PORT} src.main:app"]
+# Healthcheck contra el endpoint público /blacklists/ping (no requiere token).
+# Usa urllib para no tener que instalar curl en la imagen slim.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import os,urllib.request,sys; \
+sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:'+os.environ.get('PORT','3000')+'/blacklists/ping', timeout=4).status == 200 else sys.exit(1)"
 
+# Render/Railway inyectan PORT; en local cae al default 3000
+CMD ["sh", "-c", "gunicorn --preload -w 4 -b 0.0.0.0:${PORT} src.main:app"]

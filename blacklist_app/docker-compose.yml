@@ -1,25 +1,58 @@
+name: blacklist-app
+
 services:
   app:
     build:
       context: .
+      target: runner
       platforms:
         - linux/amd64
+    image: blacklist-app:latest
+    restart: unless-stopped
     ports:
-      - "3000:3000"
-    depends_on:
-      - db
+      - "${APP_PORT:-3000}:3000"
+    # El archivo .env es opcional: si no existe se usan los defaults de abajo.
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/blacklist_db
+      PORT: 3000
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/blacklist_db
+      BEARER_TOKEN: ${BEARER_TOKEN:-dev-token-change-in-production}
+    depends_on:
+      # src/main.py crea las tablas al importar el módulo, así que la app
+      # NO puede arrancar antes de que Postgres acepte conexiones.
+      db:
+        condition: service_healthy
 
   db:
-    image: postgres:14
+    image: postgres:14-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: blacklist_db
+    ports:
+      # Expuesto en 5433 para no chocar con un Postgres local en 5432
+      - "${DB_PORT:-5433}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d blacklist_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  # Servicio auxiliar para correr la suite de pruebas dentro de un contenedor.
+  # Uso: docker compose --profile test run --rm tests
+  tests:
+    build:
+      context: .
+      target: tester
+    image: blacklist-app:test
+    profiles:
+      - test
+
 volumes:
   postgres_data:

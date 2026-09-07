@@ -1,0 +1,37 @@
+.git
+.gitignore
+.dockerignore
+
+# Entornos virtuales y cachés locales
+.venv
+venv
+env
+ENV
+__pycache__
+*.py[cod]
+*.egg-info
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov
+coverage.xml
+junit.xml
+
+# Secretos y locales
+.env
+.env.local
+.env.test
+*.db
+*.sqlite3
+*.log
+
+# Editores / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Artefactos que no van en la imagen de runtime
+postman
+README.md

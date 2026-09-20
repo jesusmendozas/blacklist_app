@@ -1,5 +1,14 @@
 # Informe: pruebas de integración del servicio blacklist_email
 
+## Integrantes
+
+- Juan Camilo Díaz Zapateiro
+- Rafael de Jesús Beleño Castellanos
+- Yeison de Jesús Arrieta Venera
+- Jesús Felipe Mendoza Salcedo
+
+---
+
 ## Repositorio
 
 - **GitHub:** [https://github.com/jesusmendozas/blacklist_app](https://github.com/jesusmendozas/blacklist_app)

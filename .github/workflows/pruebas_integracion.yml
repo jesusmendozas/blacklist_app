@@ -1,0 +1,60 @@
+name: pruebas_integracion
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pruebas_integracion:
+    name: pruebas_integracion
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: blacklist_app
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Construir y levantar el stack (app + Postgres)
+        env:
+          BEARER_TOKEN: dev-token-change-in-production
+        run: docker compose up -d --build
+
+      - name: Esperar a que el servicio esté saludable
+        run: |
+          echo "Esperando healthcheck de /blacklists/ping..."
+          for i in $(seq 1 36); do
+            if curl -sf http://localhost:3000/blacklists/ping | grep -q pong; then
+              echo "Servicio listo (intento $i)"
+              exit 0
+            fi
+            echo "Intento $i/36: aún no responde..."
+            sleep 5
+          done
+          echo "=== Logs de la app ==="
+          docker compose logs app || true
+          echo "=== Logs de la db ==="
+          docker compose logs db || true
+          exit 1
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Instalar Newman
+        run: npm install -g newman
+
+      - name: Ejecutar colección Postman con Newman
+        run: |
+          newman run postman/Blacklist_App.postman_collection.json \
+            -e postman/Blacklist_App_Local.postman_environment.json \
+            --reporters cli \
+            --timeout-request 10000
+
+      - name: Bajar el stack
+        if: always()
+        run: docker compose down -v

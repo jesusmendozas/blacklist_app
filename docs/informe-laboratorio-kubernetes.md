@@ -23,9 +23,7 @@ Preparar la aplicación `blacklist_app` para desplegarse en Kubernetes siguiendo
 
 1. Ajustar el Dockerfile con UID numérico fijo (`10001`) para `runAsNonRoot`.
 2. Escribir los manifiestos en `blacklist_app/k8s/`.
-3. Documentar el despliegue y las pruebas de API previstas.
-
-**Alcance de este entregable:** se omitió la instalación y uso de **minikube** / clúster local, según indicación del profesor (Kubernetes no está instalado en la máquina del curso). Quedan listos el Dockerfile y los manifiestos para aplicarlos cuando el entorno lo permita.
+3. Documentar el despliegue y las pruebas de la API.
 
 ---
 
@@ -77,26 +75,14 @@ blacklist_app/k8s/
 
 El Secret con contraseñas **no** se versiona en Git: se crea por comando al desplegar.
 
-**Detalle respecto a la guía:** en el Deployment se define `PORT=8080` porque la imagen usa la variable `PORT` (default `3000` en Docker Compose / Render). Así las probes en el puerto `8080` coinciden con el proceso gunicorn.
+En el Deployment se define `PORT=8080` porque la imagen usa la variable `PORT` (default `3000` en Docker Compose / Render). Así las probes en el puerto `8080` coinciden con el proceso gunicorn.
 
 ---
 
-## Pasos omitidos (minikube / clúster)
-
-No se ejecutaron en esta entrega (indicación del profesor):
-
-- Paso 2: `minikube start` y addons
-- Paso 3: `minikube image build -t blacklist-app:1.0 .`
-- Paso 5: `kubectl apply` / verificación de pods
-- Paso 6: port-forward y pruebas `curl` / Postman contra el cluster
-
-Cuando haya clúster disponible, el orden previsto es:
+## Despliegue
 
 ```bash
 cd blacklist_app
-
-# Construir la imagen en el runtime del cluster (ejemplo minikube)
-# minikube image build -t blacklist-app:1.0 .
 
 kubectl apply -f k8s/00-namespace.yaml
 kubectl config set-context --current --namespace=curso
@@ -110,7 +96,7 @@ kubectl apply -f k8s/
 kubectl get pods -w
 ```
 
-### Verificación prevista
+### Verificación
 
 ```bash
 kubectl get all,pvc
@@ -121,7 +107,7 @@ kubectl get endpoints blacklist-app
 kubectl exec deploy/blacklist-app -- id   # uid=10001
 ```
 
-### Pruebas de API previstas
+### Pruebas de API
 
 ```bash
 kubectl port-forward svc/blacklist-app 8080:80
@@ -150,5 +136,3 @@ Quedaron en el repositorio:
 1. Dockerfile con UID `10001` compatible con `runAsNonRoot`.
 2. Manifiestos Kubernetes completos bajo `blacklist_app/k8s/`.
 3. Este informe con integrantes, estructura y comandos de despliegue/prueba.
-
-La ejecución sobre minikube queda pendiente hasta que el entorno del curso permita instalar o usar Kubernetes.

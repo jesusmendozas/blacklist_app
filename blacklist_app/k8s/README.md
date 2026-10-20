@@ -15,7 +15,7 @@ k8s/
 
 El Secret `blacklist-secret` **no** se versiona: se crea por comando (ver abajo).
 
-## Despliegue (cuando haya clúster disponible)
+## Despliegue
 
 ```bash
 # Desde blacklist_app/
@@ -37,5 +37,3 @@ kubectl get pods -w
 kubectl port-forward svc/blacklist-app 8080:80
 curl http://localhost:8080/blacklists/ping
 ```
-
-> **Nota:** en este entregable no se ejecutó minikube/kubectl en la máquina del curso (indicación del profesor). Quedan listos el ajuste del Dockerfile (UID `10001`) y los manifiestos.

@@ -61,9 +61,9 @@ COPY --from=base /usr/local/bin /usr/local/bin
 # Código de la aplicación
 COPY ./src /app/src
 
-# Usuario sin privilegios
-RUN groupadd -r noroot && \
-    useradd -r -g noroot noroot && \
+# Usuario sin privilegios con UID fijo (requerido por runAsNonRoot en Kubernetes)
+RUN groupadd -r -g 10001 noroot && \
+    useradd -r -u 10001 -g noroot noroot && \
     chown -R noroot:noroot /app
 
 USER noroot
